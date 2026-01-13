@@ -19,5 +19,10 @@ client.on('clientReady', (c) => {
     console.log(`${c.user.tag} The bot is online.`);
 });
 
+client.on('interactionCreate', (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    console.log(interaction.commandName);
+});
+
 // bot logins using its token
 client.login(process.env.TOKEN);
