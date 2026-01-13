@@ -2,15 +2,31 @@
 // But after that, does not need to be run unless a command is changed
 // Thus, it is not connected to index.js
 require('dotenv').config();
-const { REST, Routes } = require('discord.js');
+const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
 // Define our commands
 const commands = [
-    {
-        name: 'hey',
-        description: "Replies with hey!",
-    },
-];
+    new SlashCommandBuilder()
+        .setName('movie-add')
+        .setDescription('Adds an item to the Movie Wheel')
+        .addStringOption(option => 
+            option.setName('item')
+                .setDescription('The item to add')
+                .setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('movie-remove')
+        .setDescription('Removes an item from the Movie Wheel')
+        .addStringOption(option => 
+            option.setName('item')
+                .setDescription('The item to remove')
+                .setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('movie-list')
+        .setDescription('Shows all items in the Movie Wheel'),
+]
+.map(command => command.toJSON());
 
 const rest = new REST({version: '10'}).setToken(process.env.TOKEN);
 

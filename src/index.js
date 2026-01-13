@@ -3,6 +3,7 @@
 // Intents: a set of permissions that a discord bot can use, in order to gain access to a set of events
 require('dotenv').config();
 const {Client, IntentsBitField} = require('discord.js');
+const interactionHandler = require('./interactionHandler');
 
 const client = new Client({
     intents: [
@@ -19,10 +20,7 @@ client.on('clientReady', (c) => {
     console.log(`${c.user.tag} The bot is online.`);
 });
 
-client.on('interactionCreate', (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
-    console.log(interaction.commandName);
-});
+client.on('interactionCreate', interactionHandler);
 
 // bot logins using its token
 client.login(process.env.TOKEN);
