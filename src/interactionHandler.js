@@ -12,7 +12,7 @@ module.exports = async (interaction) => {
         if (success) {
             await interaction.reply(`✅ Added: **${item}**`);
         } else {
-            await interaction.reply({ content: '❌ That movie is already in the wheel.', ephemeral: true });
+            await interaction.reply({ content: '❌ That movie is already in the wheel.'});
         }
     } 
     
@@ -23,7 +23,7 @@ module.exports = async (interaction) => {
         if (success) {
             await interaction.reply(`🗑 Removed: **${item}**`);
         } else {
-            await interaction.reply({ content: '❌ Movie not found.', ephemeral: true });
+            await interaction.reply({ content: '❌ Movie not found.' });
         }
     } 
     
@@ -35,4 +35,14 @@ module.exports = async (interaction) => {
             await interaction.reply(`📋 Current items:\n- ${items.join('\n- ')}`);
         }
     }
+    else if (commandName === 'movie-spin') {
+        const item = storage.popRandom();
+
+        if (item) {
+            await interaction.reply(`🎲 You drew: **${item}**`);
+        } else {
+            await interaction.reply({ content: '📭 The list is empty, nothing to draw!'});
+        }
+    }
+    
 };

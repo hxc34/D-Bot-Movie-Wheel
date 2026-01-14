@@ -55,5 +55,21 @@ module.exports = {
         items.splice(index, 1);
         saveData();
         return true;
+    },
+
+    popRandom: () => {
+        if (items.length === 0) return null;
+        
+        // Pick a random index
+        const randomIndex = Math.floor(Math.random() * items.length);
+        
+        // Get the item
+        const item = items[randomIndex];
+        
+        items.splice(randomIndex, 1);
+        
+        saveData();
+        
+        return item;
     }
 };

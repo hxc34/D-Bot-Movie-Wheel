@@ -25,6 +25,10 @@ const commands = [
     new SlashCommandBuilder()
         .setName('movie-list')
         .setDescription('Shows all items in the Movie Wheel'),
+
+        new SlashCommandBuilder()
+        .setName('movie-spin')
+        .setDescription('Spins the wheel to Randomly pick a movie and removes it from the wheel'),    
 ]
 .map(command => command.toJSON());
 
