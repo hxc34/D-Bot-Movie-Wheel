@@ -32,6 +32,7 @@ function saveData() {
     // null for the replacer parameter; null means no filtering — all properties of the original object are included for stringification.
     // 2 → Each nested level is indented with 2 space for redability; Can be a number (# of spaces) or a string (e.g., '\t' for tabs)
         fs.writeFileSync(DATA_FILE, JSON.stringify(items, null, 2));
+        console.log('Saved Data Sucessfully');
     } catch (err) {
         console.error('Error saving data:', err);
     }
