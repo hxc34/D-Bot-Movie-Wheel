@@ -7,28 +7,8 @@ const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 // Define our commands
 const commands = [
     new SlashCommandBuilder()
-        .setName('movie-add')
-        .setDescription('Adds an item to the Movie Wheel')
-        .addStringOption(option => 
-            option.setName('item')
-                .setDescription('The item to add')
-                .setRequired(true)),
-
-    new SlashCommandBuilder()
-        .setName('movie-remove')
-        .setDescription('Removes an item from the Movie Wheel')
-        .addStringOption(option => 
-            option.setName('item')
-                .setDescription('The item to remove')
-                .setRequired(true)),
-
-    new SlashCommandBuilder()
-        .setName('movie-list')
-        .setDescription('Shows all items in the Movie Wheel'),
-
-        new SlashCommandBuilder()
-        .setName('movie-spin')
-        .setDescription('Spins the wheel to Randomly pick a movie and removes it from the wheel'),    
+        .setName('movie-menu')
+        .setDescription('Opens the Movie Wheel Control Panel'),           
 ]
 .map(command => command.toJSON());
 

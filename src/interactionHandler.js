@@ -1,48 +1,87 @@
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const storage = require('./storage.js');
 
 module.exports = async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
+    
+    // Handle the initial Slash Command to spawn buttons
+    if (interaction.isChatInputCommand()) {
+        if (interaction.commandName === 'movie-menu') {
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('btn-add').setLabel('Add Movie').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('btn-remove').setLabel('Remove Movie').setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId('btn-list').setLabel('List All').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId('btn-spin').setLabel('Spin Wheel').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
+            );
 
-    const { commandName } = interaction;
+            await interaction.reply({ content: '🎬 **Movie Wheel Controls**', components: [row] });
+        }
+        return;
+    }
 
-    if (commandName === 'movie-add') {
-        const item = interaction.options.getString('item');
-        const success = storage.add(item);
+    // Handle Button Clicks
+    if (interaction.isButton()) {
+        const { customId } = interaction;
+
+        if (customId === 'btn-list') {
+            const items = storage.getAll();
+            if (items.length === 0) {
+                await interaction.reply({ content: '📭 The movie wheel is empty.', ephemeral: true });
+            } else {
+                await interaction.reply({ content: `📋 Current items:\n- ${items.join('\n- ')}`, ephemeral: true });
+            }
+        } 
         
-        if (success) {
-            await interaction.reply(`✅ Added: **${item}**`);
-        } else {
-            await interaction.reply({ content: '❌ That movie is already in the wheel.'});
+        else if (customId === 'btn-spin') {
+            const item = storage.popRandom();
+            if (item) {
+                await interaction.reply(`🎲 You drew: **${item}**`);
+            } else {
+                await interaction.reply({ content: '📭 The list is empty, nothing to draw!', ephemeral: true });
+            }
         }
-    } 
-    
-    else if (commandName === 'movie-remove') {
-        const item = interaction.options.getString('item');
-        const success = storage.remove(item);
 
-        if (success) {
-            await interaction.reply(`🗑 Removed: **${item}**`);
-        } else {
-            await interaction.reply({ content: '❌ Movie not found.' });
+        // For Add/Remove, we need user input, so we show a Modal
+        else if (customId === 'btn-add' || customId === 'btn-remove') {
+            const action = customId === 'btn-add' ? 'add' : 'remove';
+            
+            const modal = new ModalBuilder()
+                .setCustomId(`modal-${action}`)
+                .setTitle(`${action === 'add' ? 'Add' : 'Remove'} Movie`);
+
+            const input = new TextInputBuilder()
+                .setCustomId('movie-input')
+                .setLabel("Movie Name")
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            const firstActionRow = new ActionRowBuilder().addComponents(input);
+            modal.addComponents(firstActionRow);
+            
+            await interaction.showModal(modal);
         }
-    } 
-    
-    else if (commandName === 'movie-list') {
-        const items = storage.getAll();
-        if (items.length === 0) {
-            await interaction.reply('📭 The movie wheel is empty.');
-        } else {
-            await interaction.reply(`📋 Current items:\n- ${items.join('\n- ')}`);
+        return;
+    }
+
+    // Handle Modal Submissions (Data Entry)
+    if (interaction.isModalSubmit()) {
+        const item = interaction.fields.getTextInputValue('movie-input');
+
+        if (interaction.customId === 'modal-add') {
+            const success = storage.add(item);
+            if (success) {
+                await interaction.reply(`✅ Added: **${item}**`);
+            } else {
+                await interaction.reply({ content: '❌ That movie is already in the wheel.', ephemeral: true });
+            }
+        } 
+        
+        else if (interaction.customId === 'modal-remove') {
+            const success = storage.remove(item);
+            if (success) {
+                await interaction.reply(`🗑 Removed: **${item}**`);
+            } else {
+                await interaction.reply({ content: '❌ Movie not found.', ephemeral: true });
+            }
         }
     }
-    else if (commandName === 'movie-spin') {
-        const item = storage.popRandom();
-
-        if (item) {
-            await interaction.reply(`🎲 You drew: **${item}**`);
-        } else {
-            await interaction.reply({ content: '📭 The list is empty, nothing to draw!'});
-        }
-    }
-    
 };
