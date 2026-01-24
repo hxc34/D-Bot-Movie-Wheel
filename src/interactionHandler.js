@@ -27,19 +27,20 @@ module.exports = async (interaction) => {
             if (items.length === 0) {
                 await interaction.reply({ content: '📭 The movie wheel is empty.', ephemeral: true });
             } else {
-                await interaction.reply({ content: `📋 Current items:\n- ${items.join('\n- ')}`, ephemeral: true });
+                // Format the display list; creates a new array populated with the results (a movie name, and a username)
+                const listString = items.map(i => `**${i.movie}** (Added by ${i.user})`).join('\n- ');
+                await interaction.reply({ content: `📋 Current items:\n- ${listString}`, ephemeral: true });
             }
         } 
         
         else if (customId === 'btn-spin') {
-            const item = storage.popRandom();
-            if (item) {
-                await interaction.reply(`🎲 You drew: **${item}**`);
+            const result = storage.popRandom();
+            if (result) {
+                await interaction.reply(`🎲 You drew: **${result.movie}**\n👤 Added by: ${result.user}`);
             } else {
                 await interaction.reply({ content: '📭 The list is empty, nothing to draw!', ephemeral: true });
             }
         }
-
         // For Add/Remove, we need user input, so we show a Modal
         else if (customId === 'btn-add' || customId === 'btn-remove') {
             const action = customId === 'btn-add' ? 'add' : 'remove';
@@ -64,21 +65,23 @@ module.exports = async (interaction) => {
 
     // Handle Modal Submissions (Data Entry)
     if (interaction.isModalSubmit()) {
-        const item = interaction.fields.getTextInputValue('movie-input');
+        const movieName = interaction.fields.getTextInputValue('movie-input');
 
         if (interaction.customId === 'modal-add') {
-            const success = storage.add(item);
+            // We now pass the username to storage
+            const success = storage.add(movieName, interaction.user.username);
+            
             if (success) {
-                await interaction.reply(`✅ Added: **${item}**`);
+                await interaction.reply(`✅ Added: **${movieName}**`);
             } else {
                 await interaction.reply({ content: '❌ That movie is already in the wheel.', ephemeral: true });
             }
         } 
         
         else if (interaction.customId === 'modal-remove') {
-            const success = storage.remove(item);
+            const success = storage.remove(movieName);
             if (success) {
-                await interaction.reply(`🗑 Removed: **${item}**`);
+                await interaction.reply(`🗑 Removed: **${movieName}**`);
             } else {
                 await interaction.reply({ content: '❌ Movie not found.', ephemeral: true });
             }
