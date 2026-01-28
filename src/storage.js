@@ -79,7 +79,8 @@ module.exports = {
     // 2. Creates a new empty list file
     createList: (listName) => {
         const filePath = getFilePath(listName);
-        if (fs.existsSync(filePath)) return false; // List already exists
+         // List already exists
+        if (fs.existsSync(filePath)) return false;
 
         return saveList(listName, []);
     },

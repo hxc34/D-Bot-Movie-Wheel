@@ -30,12 +30,12 @@ module.exports = async (interaction) => {
             // Create the dropdown menu
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('menu-select-list')
-                .setPlaceholder('📂 Select a Movie List to manage...');
+                .setPlaceholder('📂 Select a Movie Wheel to manage...');
 
             // Add "Create New" option always
             selectMenu.addOptions(
                 new StringSelectMenuOptionBuilder()
-                    .setLabel('➕ Create New List')
+                    .setLabel('➕ Create New Wheel')
                     .setValue('option_create_new')
                     .setDescription('Start a fresh movie wheel')
             );
@@ -50,26 +50,26 @@ module.exports = async (interaction) => {
             });
 
             const row = new ActionRowBuilder().addComponents(selectMenu);
-            await interaction.reply({ content: '🗄️ **Load a List**', components: [row] });
+            await interaction.reply({ content: '🗄️ **Load a Wheel**', components: [row] });
         }
         return;
     }
 
-    // --- 2. HANDLE SELECT MENU (User Picked a List or "Create New") ---
+    // --- 2. HANDLE SELECT MENU (User Picked a Wheel or "Create New") ---
     if (interaction.isStringSelectMenu()) {
         const selectedValue = interaction.values[0];
 
-        // Case A: Create New List
+        // Case A: Create New Wheel
         if (selectedValue === 'option_create_new') {
             const modal = new ModalBuilder()
                 .setCustomId('modal-create-list')
-                .setTitle('Create New List');
+                .setTitle('Create New Wheel');
 
             const input = new TextInputBuilder()
                 .setCustomId('list-name-input')
-                .setLabel("List Name")
+                .setLabel("Wheel Name")
                 .setStyle(TextInputStyle.Short)
-                .setPlaceholder("e.g. Horror, Anime, Friday Night")
+                .setPlaceholder("e.g. Comedy, Action, Animated")
                 .setRequired(true);
 
             modal.addComponents(new ActionRowBuilder().addComponents(input));
@@ -77,8 +77,8 @@ module.exports = async (interaction) => {
             return;
         }
 
-        // Case B: Existing List Selected -> Show Buttons
-        // We embed the list name into the button IDs using the separator "__"
+        // Case B: Existing Wheel Selected -> Show Buttons
+        // We embed the wheel  name into the button IDs using the separator "__"
         const listName = selectedValue;
         
         const row = new ActionRowBuilder().addComponents(
@@ -90,7 +90,7 @@ module.exports = async (interaction) => {
 
         // Update the original message to remove the dropdown and show controls
         await interaction.update({ 
-            content: `📂 Selected List: **${listName}**\nUse the controls below.`, 
+            content: `📂 Selected Wheel: **${listName}**\nUse the controls below.`, 
             components: [row] 
         });
         return;
@@ -103,7 +103,7 @@ module.exports = async (interaction) => {
         if (action === 'btn-list') {
             const items = storage.getAll(listName);
             if (items.length === 0) {
-                await interaction.reply({ content: `📭 The list **${listName}** is empty.`, ephemeral: true });
+                await interaction.reply({ content: `📭 The wheel **${listName}** is empty.`, ephemeral: true });
             } else {
                 const listString = items.map(i => `**${i.movie}** (by ${i.user})`).join('\n- ');
                 await interaction.reply({ content: `📋 Items in **${listName}**:\n- ${listString}`, ephemeral: true });
@@ -115,7 +115,7 @@ module.exports = async (interaction) => {
             if (result) {
                 await interaction.reply(`🎲 From **${listName}** you drew:\n# 🎬 ${result.movie}\n(Added by: ${result.user})`);
             } else {
-                await interaction.reply({ content: '📭 This list is empty, nothing to draw!', ephemeral: true });
+                await interaction.reply({ content: '📭 This wheel is empty, nothing to draw!', ephemeral: true });
             }
         }
 
@@ -159,11 +159,11 @@ module.exports = async (interaction) => {
                 );
 
                 await interaction.reply({ 
-                    content: `✅ Created new list: **${newListName}**`, 
+                    content: `✅ Created new wheel: **${newListName}**`, 
                     components: [row] 
                 });
             } else {
-                await interaction.reply({ content: '❌ A list with that name already exists or the name is invalid.', ephemeral: true });
+                await interaction.reply({ content: '❌ A wheel with that name already exists or the name is invalid.', ephemeral: true });
             }
             return;
         }
@@ -173,18 +173,18 @@ module.exports = async (interaction) => {
         if (action === 'modal-add') {
             const success = storage.add(listName, movieName, interaction.user.username);
             if (success) {
-                await interaction.reply(`✅ Added **${movieName}** to list *${listName}*`);
+                await interaction.reply(`✅ Added **${movieName}** to wheel *${listName}*`);
             } else {
-                await interaction.reply({ content: '❌ That movie is already in this list.', ephemeral: true });
+                await interaction.reply({ content: '❌ That movie is already in this wheel.', ephemeral: true });
             }
         } 
         
         else if (action === 'modal-remove') {
             const success = storage.remove(listName, movieName);
             if (success) {
-                await interaction.reply(`🗑 Removed **${movieName}** from list *${listName}*`);
+                await interaction.reply(`🗑 Removed **${movieName}** from wheel *${listName}*`);
             } else {
-                await interaction.reply({ content: '❌ Movie not found in this list.', ephemeral: true });
+                await interaction.reply({ content: '❌ Movie not found in this wheel.', ephemeral: true });
             }
         }
     }
