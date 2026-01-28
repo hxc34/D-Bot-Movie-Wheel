@@ -1,53 +1,132 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    ModalBuilder, 
+    TextInputBuilder, 
+    TextInputStyle, 
+    StringSelectMenuBuilder, 
+    StringSelectMenuOptionBuilder 
+} = require('discord.js');
+
 const storage = require('./storage.js');
+
+// Helper to extract [action, listName] from ids like "btn-add__horror"
+const parseId = (id) => {
+    const parts = id.split('__');
+    return { 
+        action: parts[0], 
+        listName: parts[1] || null 
+    };
+};
 
 module.exports = async (interaction) => {
     
-    // Handle the initial Slash Command to spawn buttons
+    // --- 1. HANDLE SLASH COMMAND (Spawn the Dropdown) ---
     if (interaction.isChatInputCommand()) {
         if (interaction.commandName === 'movie-menu') {
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('btn-add').setLabel('Add Movie').setStyle(ButtonStyle.Success),
-                new ButtonBuilder().setCustomId('btn-remove').setLabel('Remove Movie').setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId('btn-list').setLabel('List All').setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId('btn-spin').setLabel('Spin Wheel').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
+            const lists = storage.getLists();
+
+            // Create the dropdown menu
+            const selectMenu = new StringSelectMenuBuilder()
+                .setCustomId('menu-select-list')
+                .setPlaceholder('📂 Select a Movie List to manage...');
+
+            // Add "Create New" option always
+            selectMenu.addOptions(
+                new StringSelectMenuOptionBuilder()
+                    .setLabel('➕ Create New List')
+                    .setValue('option_create_new')
+                    .setDescription('Start a fresh movie wheel')
             );
 
-            await interaction.reply({ content: '🎬 **Movie Wheel Controls**', components: [row] });
+            // Add existing lists as options
+            lists.forEach(list => {
+                selectMenu.addOptions(
+                    new StringSelectMenuOptionBuilder()
+                        .setLabel(`📄 ${list}`)
+                        .setValue(list)
+                );
+            });
+
+            const row = new ActionRowBuilder().addComponents(selectMenu);
+            await interaction.reply({ content: '🗄️ **Load a List**', components: [row] });
         }
         return;
     }
 
-    // Handle Button Clicks
-    if (interaction.isButton()) {
-        const { customId } = interaction;
+    // --- 2. HANDLE SELECT MENU (User Picked a List or "Create New") ---
+    if (interaction.isStringSelectMenu()) {
+        const selectedValue = interaction.values[0];
 
-        if (customId === 'btn-list') {
-            const items = storage.getAll();
+        // Case A: Create New List
+        if (selectedValue === 'option_create_new') {
+            const modal = new ModalBuilder()
+                .setCustomId('modal-create-list')
+                .setTitle('Create New List');
+
+            const input = new TextInputBuilder()
+                .setCustomId('list-name-input')
+                .setLabel("List Name")
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder("e.g. Horror, Anime, Friday Night")
+                .setRequired(true);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
+            await interaction.showModal(modal);
+            return;
+        }
+
+        // Case B: Existing List Selected -> Show Buttons
+        // We embed the list name into the button IDs using the separator "__"
+        const listName = selectedValue;
+        
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`btn-add__${listName}`).setLabel('Add').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId(`btn-remove__${listName}`).setLabel('Remove').setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`btn-list__${listName}`).setLabel('List').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId(`btn-spin__${listName}`).setLabel('Spin').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
+        );
+
+        // Update the original message to remove the dropdown and show controls
+        await interaction.update({ 
+            content: `📂 Selected List: **${listName}**\nUse the controls below.`, 
+            components: [row] 
+        });
+        return;
+    }
+
+    // --- 3. HANDLE BUTTON CLICKS ---
+    if (interaction.isButton()) {
+        const { action, listName } = parseId(interaction.customId);
+
+        if (action === 'btn-list') {
+            const items = storage.getAll(listName);
             if (items.length === 0) {
-                await interaction.reply({ content: '📭 The movie wheel is empty.', ephemeral: true });
+                await interaction.reply({ content: `📭 The list **${listName}** is empty.`, ephemeral: true });
             } else {
-                // Format the display list; creates a new array populated with the results (a movie name, and a username)
-                const listString = items.map(i => `**${i.movie}** (Added by ${i.user})`).join('\n- ');
-                await interaction.reply({ content: `📋 Current items:\n- ${listString}`, ephemeral: true });
+                const listString = items.map(i => `**${i.movie}** (by ${i.user})`).join('\n- ');
+                await interaction.reply({ content: `📋 Items in **${listName}**:\n- ${listString}`, ephemeral: true });
             }
         } 
         
-        else if (customId === 'btn-spin') {
-            const result = storage.popRandom();
+        else if (action === 'btn-spin') {
+            const result = storage.popRandom(listName);
             if (result) {
-                await interaction.reply(`🎲 You drew: **${result.movie}**\n👤 Added by: ${result.user}`);
+                await interaction.reply(`🎲 From **${listName}** you drew:\n# 🎬 ${result.movie}\n(Added by: ${result.user})`);
             } else {
-                await interaction.reply({ content: '📭 The list is empty, nothing to draw!', ephemeral: true });
+                await interaction.reply({ content: '📭 This list is empty, nothing to draw!', ephemeral: true });
             }
         }
-        // For Add/Remove, we need user input, so we show a Modal
-        else if (customId === 'btn-add' || customId === 'btn-remove') {
-            const action = customId === 'btn-add' ? 'add' : 'remove';
+
+        // For Add/Remove, show a modal, passing the listName along
+        else if (action === 'btn-add' || action === 'btn-remove') {
+            const modalAction = action === 'btn-add' ? 'add' : 'remove';
             
+            // ID becomes: modal-add__horror
             const modal = new ModalBuilder()
-                .setCustomId(`modal-${action}`)
-                .setTitle(`${action === 'add' ? 'Add' : 'Remove'} Movie`);
+                .setCustomId(`modal-${modalAction}__${listName}`)
+                .setTitle(`${modalAction === 'add' ? 'Add to' : 'Remove from'} ${listName}`);
 
             const input = new TextInputBuilder()
                 .setCustomId('movie-input')
@@ -55,35 +134,57 @@ module.exports = async (interaction) => {
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
 
-            const firstActionRow = new ActionRowBuilder().addComponents(input);
-            modal.addComponents(firstActionRow);
-            
+            modal.addComponents(new ActionRowBuilder().addComponents(input));
             await interaction.showModal(modal);
         }
         return;
     }
 
-    // Handle Modal Submissions (Data Entry)
+    // --- 4. HANDLE MODAL SUBMISSIONS ---
     if (interaction.isModalSubmit()) {
+        const { action, listName } = parseId(interaction.customId);
+
+        // Handle "Create List"
+        if (interaction.customId === 'modal-create-list') {
+            const newListName = interaction.fields.getTextInputValue('list-name-input');
+            const success = storage.createList(newListName);
+
+            if (success) {
+                // Immediately show the controls for the new list
+                const row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`btn-add__${newListName}`).setLabel('Add').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId(`btn-remove__${newListName}`).setLabel('Remove').setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder().setCustomId(`btn-list__${newListName}`).setLabel('List').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId(`btn-spin__${newListName}`).setLabel('Spin').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
+                );
+
+                await interaction.reply({ 
+                    content: `✅ Created new list: **${newListName}**`, 
+                    components: [row] 
+                });
+            } else {
+                await interaction.reply({ content: '❌ A list with that name already exists or the name is invalid.', ephemeral: true });
+            }
+            return;
+        }
+
         const movieName = interaction.fields.getTextInputValue('movie-input');
 
-        if (interaction.customId === 'modal-add') {
-            // We now pass the username to storage
-            const success = storage.add(movieName, interaction.user.username);
-            
+        if (action === 'modal-add') {
+            const success = storage.add(listName, movieName, interaction.user.username);
             if (success) {
-                await interaction.reply(`✅ Added: **${movieName}**`);
+                await interaction.reply(`✅ Added **${movieName}** to list *${listName}*`);
             } else {
-                await interaction.reply({ content: '❌ That movie is already in the wheel.', ephemeral: true });
+                await interaction.reply({ content: '❌ That movie is already in this list.', ephemeral: true });
             }
         } 
         
-        else if (interaction.customId === 'modal-remove') {
-            const success = storage.remove(movieName);
+        else if (action === 'modal-remove') {
+            const success = storage.remove(listName, movieName);
             if (success) {
-                await interaction.reply(`🗑 Removed: **${movieName}**`);
+                await interaction.reply(`🗑 Removed **${movieName}** from list *${listName}*`);
             } else {
-                await interaction.reply({ content: '❌ Movie not found.', ephemeral: true });
+                await interaction.reply({ content: '❌ Movie not found in this list.', ephemeral: true });
             }
         }
     }

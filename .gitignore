@@ -141,4 +141,4 @@ vite.config.ts.timestamp-*
 .vite/
 
 # Custom Data Files
-movie_data.json
+lists/
