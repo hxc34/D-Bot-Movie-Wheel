@@ -7,23 +7,37 @@ It was designed so that me and my friends could all have the ability to add and 
 ## How Does it Work?
 This is a discord bot that lives in a server.
 It stores a list of movies to be watched.
-The list of movies lives persistantly, being stored to a save file.
+And, it can store multiple different lists of movies.
+The each list of movies lives persistantly, being stored to a induvidual unique save file.
 
-The user can use four slash commands:
+The user can use the bot by using the following slash command:
 
-### /movie-add [MOVIE_NAME_HERE]
-- Add the specified movie to the wheel, if it does not already exist in the wheel
-- If the movie did not exist in the wheel, the user will be told that the movie was sucessfully added
-- If the movie did exist in the wheel, the user will be told that the movie is already in the wheel
+### /movie-menu
+- Brings up the Discord Bot UI
 
-### /movie-remove [MOVIE_NAME_HERE]
-- Remove the specified movie from the wheel, if it exists in the wheel
-- If the movie did not exist in the wheel, the user will be told that the movie does not exist
-- If the movie did exist in the wheel, the user will be told that the movie was sucessfully removed
+## How do we create or select a Wheel?
+The user will first be greeted with a dropdown menu, or select menu.
+From here, the user can select a particular list of stored movies to interact with (a wheel)
+Or, if this is their first time or they want to make a new wheel, they can create and name a new Wheel from the meny'
 
-### /movie-list
-- Return a list of movies stored in the wheel, if any
+## How do we interact with a wheel
+There are four easy to use buttons.
 
-### /movie-spin
-- Spins the wheel to retrun a random movie, and removes that movie from the wheel
-- If no movies exist in the wheel, it will inform the user there is no movie to pick
+### Add Button
+When clicked on, the user can add a movie to their current movie wheel by typing in its name. 
+The user can add any name they want, as long as the same name does not already exist in the current movie wheel
+
+### Remove Button
+When clicked on, the user can remove a movie from their current movie wheel by typing in its name. 
+The bot will catch and prevent attempts to remove non-existant movies in the current wheel
+
+### List Button
+When clicked on, the user can see all the movies currently in the wheel
+
+### Spin Button
+When clicked on, the user will randomly get a movie from their current movie wheel
+The selected movie is then removed from the wheel
+
+## Note:
+When a movie is added, the bot will also store the username of the person who added the movie
+Similarily, if a movie wheel is spun, then when the movie is retrieved, the name of the user who added the movie is also displayed by the bot
