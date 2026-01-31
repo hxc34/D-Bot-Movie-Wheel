@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 // Constants
 const LISTS_DIR = './lists';
-const DELIMITER = ' ::: '; // Unique separator
+ // Unique separator
+const DELIMITER = ' ::: ';
 
 // Initialize data array
 let items = [];
@@ -17,7 +18,7 @@ if (!fs.existsSync(LISTS_DIR)) {
     }
 }
 
-// --- HELPER FUNCTIONS ---
+// Helper Functions
 
 // Generates a safe file path and prevents directory traversal
 function getFilePath(listName) {
@@ -44,7 +45,7 @@ function readList(listName) {
     }
 }
 
-// Saves an array to a specific list file
+// Helper that Saves an array to a specific list file
 function saveList(listName, items) {
     const filePath = getFilePath(listName);
     try {
@@ -63,7 +64,7 @@ function parseItem(rawString) {
 }
 
 module.exports = {
-    // 1. Returns an array of available list names (filenames without .json)
+    // Returns an array of available list names (filenames without .json) AKA Helper Function to show all existing movie wheels in the GUI
     getLists: () => {
         try {
             const files = fs.readdirSync(LISTS_DIR);
@@ -76,7 +77,7 @@ module.exports = {
         }
     },
 
-    // 2. Creates a new empty list file
+    // Creates a new empty list file AKA create a new movie wheel
     createList: (listName) => {
         const filePath = getFilePath(listName);
          // List already exists
@@ -85,12 +86,12 @@ module.exports = {
         return saveList(listName, []);
     },
 
-    // 3. Get all items from a specific list
+    // Get all items from a specific list AKA list every movie in a specific movie wheel
     getAll: (listName) => {
         return readList(listName).map(parseItem);
     },
     
-    // 4. Add item to a specific list
+    // Add item to a specific list AKA Add movie to a specific movie wheel
     add: (listName, movie, username) => {
         const items = readList(listName);
         
@@ -106,7 +107,7 @@ module.exports = {
         return true;
     },
     
-    // 5. Remove item from a specific list
+    // Remove item from a specific list AKA remove a movie from the currently used movie wheel
     remove: (listName, movie) => {
         const items = readList(listName);
         
@@ -120,7 +121,7 @@ module.exports = {
         return true;
     },
 
-    // 6. Pop random item from a specific list
+    // Pop random item from a specific list AKA randomly select and remove a movie from the currently used movie wheel
     popRandom: (listName) => {
         const items = readList(listName);
         

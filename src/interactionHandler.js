@@ -22,17 +22,17 @@ const parseId = (id) => {
 
 module.exports = async (interaction) => {
     
-    // --- 1. HANDLE SLASH COMMAND (Spawn the Dropdown) ---
+    // Spawn Inital Select Menu For Selecting/Creating Movie Wheels when user uses slash command
     if (interaction.isChatInputCommand()) {
         if (interaction.commandName === 'movie-menu') {
             const lists = storage.getLists();
 
-            // Create the dropdown menu
+            // Create the select menu
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('menu-select-list')
                 .setPlaceholder('📂 Select a Movie Wheel to manage...');
 
-            // Add "Create New" option always
+            // Always Add "Create New" option
             selectMenu.addOptions(
                 new StringSelectMenuOptionBuilder()
                     .setLabel('➕ Create New Wheel')
@@ -40,7 +40,7 @@ module.exports = async (interaction) => {
                     .setDescription('Start a fresh movie wheel')
             );
 
-            // Add existing lists as options
+            // Add existing lists AKA Movie Wheels as options for selection
             lists.forEach(list => {
                 selectMenu.addOptions(
                     new StringSelectMenuOptionBuilder()
@@ -55,11 +55,11 @@ module.exports = async (interaction) => {
         return;
     }
 
-    // --- 2. HANDLE SELECT MENU (User Picked a Wheel or "Create New") ---
+    // Handle when User Picked a Wheel or Created new Wheel
     if (interaction.isStringSelectMenu()) {
         const selectedValue = interaction.values[0];
 
-        // Case A: Create New Wheel
+        // Handle If the user Created a New Wheel
         if (selectedValue === 'option_create_new') {
             const modal = new ModalBuilder()
                 .setCustomId('modal-create-list')
@@ -77,7 +77,7 @@ module.exports = async (interaction) => {
             return;
         }
 
-        // Case B: Existing Wheel Selected -> Show Buttons
+        // We Handle if an Existing Wheel is Selected, which means we need to Show Buttons
         // We embed the wheel  name into the button IDs using the separator "__"
         const listName = selectedValue;
         
@@ -88,7 +88,7 @@ module.exports = async (interaction) => {
             new ButtonBuilder().setCustomId(`btn-spin__${listName}`).setLabel('Spin').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
         );
 
-        // Update the original message to remove the dropdown and show controls
+        // Update the original Discord UI to remove the select menu and show button controls
         await interaction.update({ 
             content: `📂 Selected Wheel: **${listName}**\nUse the controls below.`, 
             components: [row] 
@@ -96,7 +96,7 @@ module.exports = async (interaction) => {
         return;
     }
 
-    // --- 3. HANDLE BUTTON CLICKS ---
+    // Handle all the user button clicks
     if (interaction.isButton()) {
         const { action, listName } = parseId(interaction.customId);
 
@@ -119,11 +119,10 @@ module.exports = async (interaction) => {
             }
         }
 
-        // For Add/Remove, show a modal, passing the listName along
+        // For Add/Remove, we need to show a modal, to allow user to enter the wheel name
         else if (action === 'btn-add' || action === 'btn-remove') {
             const modalAction = action === 'btn-add' ? 'add' : 'remove';
             
-            // ID becomes: modal-add__horror
             const modal = new ModalBuilder()
                 .setCustomId(`modal-${modalAction}__${listName}`)
                 .setTitle(`${modalAction === 'add' ? 'Add to' : 'Remove from'} ${listName}`);
@@ -140,17 +139,17 @@ module.exports = async (interaction) => {
         return;
     }
 
-    // --- 4. HANDLE MODAL SUBMISSIONS ---
+    // Handling what UI changes happen after the user enters input in a Modal (text box) and submits
     if (interaction.isModalSubmit()) {
         const { action, listName } = parseId(interaction.customId);
 
-        // Handle "Create List"
+        // If user was entering text for a wheel name, we need to bring up the buttons once the wheel is sucessfully created
         if (interaction.customId === 'modal-create-list') {
             const newListName = interaction.fields.getTextInputValue('list-name-input');
             const success = storage.createList(newListName);
 
             if (success) {
-                // Immediately show the controls for the new list
+                // Immediately show the button controls for interacting with the new wheel
                 const row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder().setCustomId(`btn-add__${newListName}`).setLabel('Add').setStyle(ButtonStyle.Success),
                     new ButtonBuilder().setCustomId(`btn-remove__${newListName}`).setLabel('Remove').setStyle(ButtonStyle.Danger),
@@ -169,7 +168,7 @@ module.exports = async (interaction) => {
         }
 
         const movieName = interaction.fields.getTextInputValue('movie-input');
-
+        // If user was entering text to add a movie, we need to bring up the outcome of their action to inform the user
         if (action === 'modal-add') {
             const success = storage.add(listName, movieName, interaction.user.username);
             if (success) {
@@ -178,7 +177,7 @@ module.exports = async (interaction) => {
                 await interaction.reply({ content: '❌ That movie is already in this wheel.', ephemeral: true });
             }
         } 
-        
+        // If user was entering text to remove a movie, we need to bring up the outcome of their action to inform the user
         else if (action === 'modal-remove') {
             const success = storage.remove(listName, movieName);
             if (success) {
