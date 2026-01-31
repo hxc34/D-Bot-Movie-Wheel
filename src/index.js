@@ -23,4 +23,4 @@ client.on('clientReady', (c) => {
 client.on('interactionCreate', interactionHandler);
 
 // bot logins using its token
-client.login(process.env.TOKEN);
+client.login(process.env.DISCORD_TOKEN);
