@@ -1,12 +1,12 @@
-const { 
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    ModalBuilder, 
-    TextInputBuilder, 
-    TextInputStyle, 
-    StringSelectMenuBuilder, 
-    StringSelectMenuOptionBuilder 
+const {
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
+    StringSelectMenuBuilder,
+    StringSelectMenuOptionBuilder
 } = require('discord.js');
 
 const storage = require('./storage.js');
@@ -14,14 +14,14 @@ const storage = require('./storage.js');
 // Helper to extract [action, listName] from ids like "btn-add__horror"
 const parseId = (id) => {
     const parts = id.split('__');
-    return { 
-        action: parts[0], 
-        listName: parts[1] || null 
+    return {
+        action: parts[0],
+        listName: parts[1] || null
     };
 };
 
 module.exports = async (interaction) => {
-    
+
     // Spawn Inital Select Menu For Selecting/Creating Movie Wheels when user uses slash command
     if (interaction.isChatInputCommand()) {
         if (interaction.commandName === 'movie-menu') {
@@ -50,7 +50,12 @@ module.exports = async (interaction) => {
             });
 
             const row = new ActionRowBuilder().addComponents(selectMenu);
-            await interaction.reply({ content: '🗄️ **Load a Wheel**', components: [row] });
+            try {
+                await interaction.reply({ content: '🗄️ **Load a Wheel**', components: [row] });
+            } catch (err) {
+                console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
+            }
+
         }
         return;
     }
@@ -73,26 +78,34 @@ module.exports = async (interaction) => {
                 .setRequired(true);
 
             modal.addComponents(new ActionRowBuilder().addComponents(input));
-            await interaction.showModal(modal);
+            try {
+                await interaction.showModal(modal);
+            } catch (err) {
+                console.error(`Failed to show modal. User may have double-clicked or lagged or Discord may have bugged out.`);
+            }
             return;
         }
 
         // We Handle if an Existing Wheel is Selected, which means we need to Show Buttons
         // We embed the wheel  name into the button IDs using the separator "__"
         const listName = selectedValue;
-        
+
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`btn-add__${listName}`).setLabel('Add').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId(`btn-remove__${listName}`).setLabel('Remove').setStyle(ButtonStyle.Danger),
             new ButtonBuilder().setCustomId(`btn-list__${listName}`).setLabel('List').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId(`btn-spin__${listName}`).setLabel('Spin').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
         );
+        try {
+            // Update the original Discord UI to remove the select menu and show button controls
+            await interaction.update({
+                content: `📂 Selected Wheel: **${listName}**\nUse the controls below.`,
+                components: [row]
+            });
+        } catch (err) {
+            console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
+        }
 
-        // Update the original Discord UI to remove the select menu and show button controls
-        await interaction.update({ 
-            content: `📂 Selected Wheel: **${listName}**\nUse the controls below.`, 
-            components: [row] 
-        });
         return;
     }
 
@@ -102,27 +115,37 @@ module.exports = async (interaction) => {
 
         if (action === 'btn-list') {
             const items = storage.getAll(listName);
-            if (items.length === 0) {
-                await interaction.reply({ content: `📭 The wheel **${listName}** is empty.`, ephemeral: true });
-            } else {
-                const listString = items.map(i => `**${i.movie}** (by ${i.user})`).join('\n- ');
-                await interaction.reply({ content: `📋 Items in **${listName}**:\n- ${listString}`, ephemeral: true });
+            try {
+                if (items.length === 0) {
+                    await interaction.reply({ content: `📭 The wheel **${listName}** is empty.`, ephemeral: true });
+                } else {
+                    const listString = items.map(i => `**${i.movie}** (by <${i.user}>)`).join('\n- ');
+                    await interaction.reply({ content: `📋 Items in **${listName}**:\n- ${listString}`, ephemeral: true });
+                }
+            } catch (err) {
+                console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
             }
-        } 
-        
+        }
+
         else if (action === 'btn-spin') {
             const result = storage.popRandom(listName);
-            if (result) {
-                await interaction.reply(`🎲 From **${listName}** you drew:\n# 🎬 ${result.movie}\n(Added by: ${result.user})`);
-            } else {
-                await interaction.reply({ content: '📭 This wheel is empty, nothing to draw!', ephemeral: true });
+            // Wrapped in a try/catch to prevent crashes from double-clicks/timeouts/ratelimits/other Discord issues
+            try {
+                if (result) {
+                    await interaction.reply(`🎲 From **${listName}** you drew:\n# 🎬 ${result.movie}\n(Added by: <@${result.user}>)`);
+                } else {
+                    await interaction.reply({ content: '📭 This wheel is empty, nothing to draw!', ephemeral: true });
+                }
+            }
+            catch (err) {
+                console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
             }
         }
 
         // For Add/Remove, we need to show a modal, to allow user to enter the wheel name
         else if (action === 'btn-add' || action === 'btn-remove') {
             const modalAction = action === 'btn-add' ? 'add' : 'remove';
-            
+
             const modal = new ModalBuilder()
                 .setCustomId(`modal-${modalAction}__${listName}`)
                 .setTitle(`${modalAction === 'add' ? 'Add to' : 'Remove from'} ${listName}`);
@@ -134,7 +157,12 @@ module.exports = async (interaction) => {
                 .setRequired(true);
 
             modal.addComponents(new ActionRowBuilder().addComponents(input));
-            await interaction.showModal(modal);
+            // Wrapped in a try/catch to prevent crashes from double-clicks/timeouts/ratelimits/other Discord issues
+            try {
+                await interaction.showModal(modal);
+            } catch (err) {
+                console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
+            }
         }
         return;
     }
@@ -147,43 +175,56 @@ module.exports = async (interaction) => {
         if (interaction.customId === 'modal-create-list') {
             const newListName = interaction.fields.getTextInputValue('list-name-input');
             const success = storage.createList(newListName);
+            try {
+                if (success) {
+                    // Immediately show the button controls for interacting with the new wheel
+                    const row = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder().setCustomId(`btn-add__${newListName}`).setLabel('Add').setStyle(ButtonStyle.Success),
+                        new ButtonBuilder().setCustomId(`btn-remove__${newListName}`).setLabel('Remove').setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder().setCustomId(`btn-list__${newListName}`).setLabel('List').setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder().setCustomId(`btn-spin__${newListName}`).setLabel('Spin').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
+                    );
 
-            if (success) {
-                // Immediately show the button controls for interacting with the new wheel
-                const row = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId(`btn-add__${newListName}`).setLabel('Add').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId(`btn-remove__${newListName}`).setLabel('Remove').setStyle(ButtonStyle.Danger),
-                    new ButtonBuilder().setCustomId(`btn-list__${newListName}`).setLabel('List').setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder().setCustomId(`btn-spin__${newListName}`).setLabel('Spin').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
-                );
-
-                await interaction.reply({ 
-                    content: `✅ Created new wheel: **${newListName}**`, 
-                    components: [row] 
-                });
-            } else {
-                await interaction.reply({ content: '❌ A wheel with that name already exists or the name is invalid.', ephemeral: true });
+                    await interaction.reply({
+                        content: `✅ Created new wheel: **${newListName}**`,
+                        components: [row]
+                    });
+                } else {
+                    await interaction.reply({ content: '❌ A wheel with that name already exists or the name is invalid.', ephemeral: true });
+                }
+            } catch (err) {
+                console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
             }
+
             return;
         }
 
         const movieName = interaction.fields.getTextInputValue('movie-input');
         // If user was entering text to add a movie, we need to bring up the outcome of their action to inform the user
         if (action === 'modal-add') {
-            const success = storage.add(listName, movieName, interaction.user.username);
-            if (success) {
-                await interaction.reply(`✅ Added **${movieName}** to wheel *${listName}*`);
-            } else {
-                await interaction.reply({ content: '❌ That movie is already in this wheel.', ephemeral: true });
+            const success = storage.add(listName, movieName, interaction.user.id);
+            try {
+                if (success) {
+                    await interaction.reply(`✅ Added **${movieName}** to wheel *${listName}*`);
+                } else {
+                    await interaction.reply({ content: '❌ That movie is already in this wheel.', ephemeral: true });
+                }
+            } catch (err) {
+                console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
             }
-        } 
+
+        }
         // If user was entering text to remove a movie, we need to bring up the outcome of their action to inform the user
         else if (action === 'modal-remove') {
             const success = storage.remove(listName, movieName);
-            if (success) {
-                await interaction.reply(`🗑 Removed **${movieName}** from wheel *${listName}*`);
-            } else {
-                await interaction.reply({ content: '❌ Movie not found in this wheel.', ephemeral: true });
+            try {
+                if (success) {
+                    await interaction.reply(`🗑 Removed **${movieName}** from wheel *${listName}*`);
+                } else {
+                    await interaction.reply({ content: '❌ Movie not found in this wheel.', ephemeral: true });
+                }
+            } catch (err) {
+                console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
             }
         }
     }
