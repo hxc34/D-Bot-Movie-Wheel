@@ -57,10 +57,16 @@ function saveList(listName, items) {
     }
 }
 
-// Helper to split "User ::: Movie" into parts
 function parseItem(rawString) {
     const parts = rawString.split(DELIMITER);
-    return { user: parts[0], movie: parts[1] };
+    
+    // Backwards compatibility: if it's an old save we split the save file line via Username ::: Movie
+    if (parts.length === 2) {
+        return { userId: null, user: parts[0], movie: parts[1] };
+    }
+    
+    // Otherwise, we split using UserId ::: Username ::: Movie
+    return { userId: parts[0], user: parts[1], movie: parts[2] };
 }
 
 module.exports = {
@@ -92,15 +98,15 @@ module.exports = {
     },
     
     // Add item to a specific list AKA Add movie to a specific movie wheel
-    add: (listName, movie, username) => {
+    add: (listName, movie, username, userId) => {
         const items = readList(listName);
         
         // Check duplicates based on the movie name part only
         const exists = items.some(i => parseItem(i).movie.toLowerCase() === movie.toLowerCase());
         if (exists) return false;
 
-        // Store as: Username ::: MovieName
-        const entry = `${username}${DELIMITER}${movie}`;
+        // Store as: UserId ::: Username ::: MovieName
+        const entry = `${userId}${DELIMITER}${username}${DELIMITER}${movie}`;
         items.push(entry);
         
         saveList(listName, items);
@@ -136,5 +142,19 @@ module.exports = {
         saveList(listName, items);
         
         return parseItem(rawItem);
+    },
+
+    // Delete an entire movie list file AKA delete a movie wheel
+    deleteList: (listName) => {
+        const filePath = getFilePath(listName);
+        if (!fs.existsSync(filePath)) return false;
+
+        try {
+            fs.unlinkSync(filePath);
+            return true;
+        } catch (err) {
+            console.error(`Error deleting wheel ${listName}:`, err);
+            return false;
+        }
     }
 };

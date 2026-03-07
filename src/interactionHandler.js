@@ -95,6 +95,7 @@ module.exports = async (interaction) => {
             new ButtonBuilder().setCustomId(`btn-remove__${listName}`).setLabel('Remove').setStyle(ButtonStyle.Danger),
             new ButtonBuilder().setCustomId(`btn-list__${listName}`).setLabel('List').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId(`btn-spin__${listName}`).setLabel('Spin').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
+            new ButtonBuilder().setCustomId(`btn-delete__${listName}`).setLabel('Delete').setStyle(ButtonStyle.Danger)
         );
         try {
             // Update the original Discord UI to remove the select menu and show button controls
@@ -132,7 +133,9 @@ module.exports = async (interaction) => {
             // Wrapped in a try/catch to prevent crashes from double-clicks/timeouts/ratelimits/other Discord issues
             try {
                 if (result) {
-                    await interaction.reply(`🎲 From **${listName}** you drew:\n# 🎬 ${result.movie}\n(Added by: <@${result.user}>)`);
+                    const addedById = result.userId ? `<@${result.userId}>` : 'Unknown';
+                    const addedByUser = result.user;
+                    await interaction.reply(`🎲 From **${listName}** you drew:\n# 🎬 ${result.movie}\n(Added by: ${addedById}; with Name: ${addedByUser})`);
                 } else {
                     await interaction.reply({ content: '📭 This wheel is empty, nothing to draw!', ephemeral: true });
                 }
@@ -164,6 +167,61 @@ module.exports = async (interaction) => {
                 console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
             }
         }
+
+        // 1. User clicked the first Delete button -> Show confirmation
+        else if (action === 'btn-delete') {
+            try {
+                const confirmRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`btn-confirm-delete__${listName}`).setLabel('⚠️ Yes, Delete').setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder().setCustomId(`btn-cancel-delete__${listName}`).setLabel('Cancel').setStyle(ButtonStyle.Secondary)
+                );
+
+                await interaction.update({
+                    content: `🚨 **WARNING:** Are you sure you want to permanently delete the wheel **${listName}**?\n*This action cannot be undone.*`,
+                    components: [confirmRow]
+                });
+            } catch (err) {
+                console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
+            }
+        }
+
+        // 2. User clicked "Yes, Delete" -> Actually delete it
+        else if (action === 'btn-confirm-delete') {
+            const success = storage.deleteList(listName);
+            try {
+                if (success) {
+                    await interaction.update({
+                        content: `🗑️ The movie wheel **${listName}** was permanently deleted.`,
+                        components: []
+                    });
+                } else {
+                    await interaction.reply({ content: '❌ Could not delete the wheel (it may not exist).', ephemeral: true });
+                }
+            } catch (err) {
+                console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
+            }
+        }
+
+        // 3. User clicked "Cancel" -> Restore the original menu
+        else if (action === 'btn-cancel-delete') {
+            try {
+                const originalRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId(`btn-add__${listName}`).setLabel('Add').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId(`btn-remove__${listName}`).setLabel('Remove').setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder().setCustomId(`btn-list__${listName}`).setLabel('List').setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder().setCustomId(`btn-spin__${listName}`).setLabel('Spin').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
+                    new ButtonBuilder().setCustomId(`btn-delete__${listName}`).setLabel('Delete').setStyle(ButtonStyle.Danger)
+                );
+
+                await interaction.update({
+                    content: `📂 Selected Wheel: **${listName}**\nDeletion cancelled. Use the controls below.`,
+                    components: [originalRow]
+                });
+            } catch (err) {
+                console.error(`Failed to show modal for ${listName}. User may have double-clicked or lagged or Discord may have bugged out.`);
+            }
+        }
+
         return;
     }
 
@@ -183,6 +241,7 @@ module.exports = async (interaction) => {
                         new ButtonBuilder().setCustomId(`btn-remove__${newListName}`).setLabel('Remove').setStyle(ButtonStyle.Danger),
                         new ButtonBuilder().setCustomId(`btn-list__${newListName}`).setLabel('List').setStyle(ButtonStyle.Secondary),
                         new ButtonBuilder().setCustomId(`btn-spin__${newListName}`).setLabel('Spin').setStyle(ButtonStyle.Primary).setEmoji('🎲'),
+                        new ButtonBuilder().setCustomId(`btn-delete__${newListName}`).setLabel('Delete').setStyle(ButtonStyle.Danger)
                     );
 
                     await interaction.reply({
@@ -202,7 +261,7 @@ module.exports = async (interaction) => {
         const movieName = interaction.fields.getTextInputValue('movie-input');
         // If user was entering text to add a movie, we need to bring up the outcome of their action to inform the user
         if (action === 'modal-add') {
-            const success = storage.add(listName, movieName, interaction.user.id);
+            const success = storage.add(listName, movieName, interaction.user.username, interaction.user.id);
             try {
                 if (success) {
                     await interaction.reply(`✅ Added **${movieName}** to wheel *${listName}*`);
